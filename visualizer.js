@@ -23,7 +23,6 @@ export class Visualizer {
             
             const panel = document.createElement('div');
             panel.id = 'vis-ui-panel';
-            // Increased to 110px to safely clear Chrome's stacked Address + Tab bars
             panel.style.cssText = 'position: absolute; top: 110px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 350px;';
             
             panel.innerHTML = `
@@ -41,7 +40,6 @@ export class Visualizer {
             this.container.style.overflow = 'hidden';
             this.container.style.backgroundColor = '#ffffff';
             
-            // Failsafe to push panel down if it already existed
             const existingPanel = document.getElementById('vis-ui-panel');
             if (existingPanel) existingPanel.style.top = '110px';
         }
@@ -92,7 +90,6 @@ export class Visualizer {
 
         this.gui = new GUI({ title: 'Extrusion Settings' });
         this.gui.domElement.style.position = 'absolute';
-        // Increased to 110px to safely clear the iPad browser address bar
         this.gui.domElement.style.top = '110px';
         this.gui.domElement.style.right = '20px';
         

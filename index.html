@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Laser Spline Designer</title>
     <link rel="stylesheet" href="styles.css">
     <style>
@@ -25,8 +24,7 @@
         .sme-labels { display: flex; font-size: 10px; color: #aaa; padding: 0 2px; }
         .sme-labels span { flex: 1; text-align: center; }
     </style>
-    
-    <!-- Scripts properly placed outside the style block -->
+
     <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
     <script type="importmap">
     {
@@ -104,41 +102,41 @@
                 </div>
 
                 <div class="sme-labels"><span>Start</span><span>Mid</span><span>End</span></div>
-				<div class="dup-grid-header">
-				    <span></span>
-				    <span>Mid</span>
-				    <span>End</span>
-				</div>
-				
-				<div class="dup-grid-row">
-				    <label>Width Multiplier</label>
-				    <input type="number" id="dup-w-m" value="1" step="0.1">
-				    <input type="number" id="dup-w-e" value="1" step="0.1">
-				</div>
-				
-				<div class="dup-grid-row">
-				    <label>Mod Phase Offset</label>
-				    <input type="number" id="dup-p-m" value="0" step="0.1">
-				    <input type="number" id="dup-p-e" value="0" step="0.1">
-				</div>
-				
-				<div class="dup-grid-row">
-				    <label>Mod Amp Multiplier</label>
-				    <input type="number" id="dup-a-m" value="1" step="0.1">
-				    <input type="number" id="dup-a-e" value="1" step="0.1">
-				</div>
-				
-				<div class="dup-grid-row">
-				    <label>Mod Freq Multiplier</label>
-				    <input type="number" id="dup-f-m" value="1" step="0.1">
-				    <input type="number" id="dup-f-e" value="1" step="0.1">
-				</div>
-				
-				<div class="dup-grid-row">
-				    <label>Geometric Scale</label>
-				    <input type="number" id="dup-s-m" value="1" step="0.1">
-				    <input type="number" id="dup-s-e" value="1" step="0.1">
-				</div>
+                <div class="dup-grid-header">
+                    <span></span>
+                    <span>Mid</span>
+                    <span>End</span>
+                </div>
+                
+                <div class="dup-grid-row">
+                    <label>Width Multiplier</label>
+                    <input type="number" id="dup-w-m" value="1" step="0.1">
+                    <input type="number" id="dup-w-e" value="1" step="0.1">
+                </div>
+                
+                <div class="dup-grid-row">
+                    <label>Mod Phase Offset</label>
+                    <input type="number" id="dup-p-m" value="0" step="0.1">
+                    <input type="number" id="dup-p-e" value="0" step="0.1">
+                </div>
+                
+                <div class="dup-grid-row">
+                    <label>Mod Amp Multiplier</label>
+                    <input type="number" id="dup-a-m" value="1" step="0.1">
+                    <input type="number" id="dup-a-e" value="1" step="0.1">
+                </div>
+                
+                <div class="dup-grid-row">
+                    <label>Mod Freq Multiplier</label>
+                    <input type="number" id="dup-f-m" value="1" step="0.1">
+                    <input type="number" id="dup-f-e" value="1" step="0.1">
+                </div>
+                
+                <div class="dup-grid-row">
+                    <label>Geometric Scale</label>
+                    <input type="number" id="dup-s-m" value="1" step="0.1">
+                    <input type="number" id="dup-s-e" value="1" step="0.1">
+                </div>
                 
                 <button id="btn-reset-dup" style="margin-top: 10px; background-color: #555;">Reset Defaults</button>
             </section>
@@ -179,7 +177,7 @@
             </section>
 
             <section class="menu-section export-section">
-				<button id="btn-preview-3d" class="btn">Preview 3D</button>
+                <button id="btn-preview-3d" class="btn">Preview 3D</button>
                 <button id="btn-export-svg" class="primary">Export to .SVG</button>
             </section>
         </aside>
@@ -189,14 +187,5 @@
         </main>
     </div>
     <script type="module" src="main.js"></script>
-	<div id="visualizer-container" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1000; background-color: #2c2c2c;">
-        <div id="vis-ui-panel" style="position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 350px;">
-            <h2 style="margin-top: 0; font-size: 1.2rem; color: #333;">3D Preview</h2>
-            <button id="btn-close-3d" style="margin-bottom:10px; width:100%; padding:8px; background:#d93025; color:white; border:none; border-radius:4px; cursor:pointer;">Close 3D View</button>
-            <div id="error-box" style="color: #d93025; font-size: 0.8rem; font-weight: bold; margin-top: 10px;"></div>
-            <div style="font-weight: bold; font-size: 0.85rem; margin-top: 10px; color: #333;">Detected Layers (Max 10):</div>
-            <div id="layerOutput" style="font-size: 0.8rem; max-height: 180px; overflow-y: auto; margin-top: 10px; color: #444;"></div>
-        </div>
-    </div>
 </body>
 </html>
