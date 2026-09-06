@@ -19,7 +19,7 @@ export class Visualizer {
         if (!this.container) {
             this.container = document.createElement('div');
             this.container.id = 'visualizer-container';
-            this.container.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1000;';
+            this.container.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; overflow: hidden; background-color: #ffffff;';
             
             const panel = document.createElement('div');
             panel.id = 'vis-ui-panel';
@@ -34,10 +34,13 @@ export class Visualizer {
             `;
             this.container.appendChild(panel);
             document.body.appendChild(this.container);
+        } else {
+            // Override HTML vw/vh values to fix Chrome bounds bleeding
+            this.container.style.width = '100%';
+            this.container.style.height = '100%';
+            this.container.style.overflow = 'hidden';
+            this.container.style.backgroundColor = '#ffffff';
         }
-
-        // Force background to white regardless of CSS
-        this.container.style.backgroundColor = '#ffffff';
 
         this.layerOutput = document.getElementById('vis-layerOutput') || document.getElementById('layerOutput');
         this.errorBox = document.getElementById('vis-error-box') || document.getElementById('error-box');
@@ -51,7 +54,7 @@ export class Visualizer {
         }
 
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xffffff); // Changed to White
+        this.scene.background = new THREE.Color(0xffffff);
 
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
         this.camera.position.set(0, 0, 500);
@@ -59,6 +62,12 @@ export class Visualizer {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Force canvas to block level to prevent invisible scroll margins
+        this.renderer.domElement.style.display = 'block';
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        
         this.container.appendChild(this.renderer.domElement);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -207,7 +216,6 @@ export class Visualizer {
                 let threeColor = new THREE.Color();
                 try { threeColor.setStyle(colorToUse); } catch (e) { threeColor.setHex(0xaaaaaa); }
 
-                // Material for the flat front and back faces
                 const faceMaterial = new THREE.MeshStandardMaterial({
                     color: threeColor,
                     side: THREE.DoubleSide,
@@ -218,11 +226,10 @@ export class Visualizer {
                     flatShading: false
                 });
 
-                // Material for the extruded edges (dark brown simulating laser burn)
                 const edgeMaterial = new THREE.MeshStandardMaterial({
                     color: new THREE.Color('#3d2314'),
                     side: THREE.DoubleSide,
-                    roughness: 0.9, // Very rough
+                    roughness: 0.9,
                     metalness: 0.0,
                     transparent: opacity < 1,
                     opacity: opacity,
@@ -237,7 +244,6 @@ export class Visualizer {
                             bevelEnabled: false,
                             curveSegments: this.params.curveSegments 
                         });
-                        // Pass the array of materials: [face, edge]
                         layerGroup.add(new THREE.Mesh(geometry, [faceMaterial, edgeMaterial]));
                     } catch (e) {}
                 }
