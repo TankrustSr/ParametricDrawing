@@ -19,11 +19,13 @@ export class Visualizer {
         if (!this.container) {
             this.container = document.createElement('div');
             this.container.id = 'visualizer-container';
-            this.container.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; overflow: hidden; background-color: #ffffff;';
+            // Added 100dvh to fix iOS/iPad container bleeding
+            this.container.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; z-index: 1000; overflow: hidden; background-color: #ffffff;';
             
             const panel = document.createElement('div');
             panel.id = 'vis-ui-panel';
-            panel.style.cssText = 'position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 350px;';
+            // Adjusted top: 80px to safely clear the iPad browser address bar
+            panel.style.cssText = 'position: absolute; top: 80px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 350px;';
             
             panel.innerHTML = `
                 <h2 style="margin-top: 0; font-size: 1.2rem; color: #333; font-family: sans-serif;">3D Preview</h2>
@@ -35,9 +37,8 @@ export class Visualizer {
             this.container.appendChild(panel);
             document.body.appendChild(this.container);
         } else {
-            // Override HTML vw/vh values to fix Chrome bounds bleeding
             this.container.style.width = '100%';
-            this.container.style.height = '100%';
+            this.container.style.height = '100dvh';
             this.container.style.overflow = 'hidden';
             this.container.style.backgroundColor = '#ffffff';
         }
@@ -63,7 +64,6 @@ export class Visualizer {
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         
-        // Force canvas to block level to prevent invisible scroll margins
         this.renderer.domElement.style.display = 'block';
         this.renderer.domElement.style.width = '100%';
         this.renderer.domElement.style.height = '100%';
@@ -89,7 +89,8 @@ export class Visualizer {
 
         this.gui = new GUI({ title: 'Extrusion Settings' });
         this.gui.domElement.style.position = 'absolute';
-        this.gui.domElement.style.top = '20px';
+        // Adjusted top: 80px to safely clear the iPad browser address bar
+        this.gui.domElement.style.top = '80px';
         this.gui.domElement.style.right = '20px';
         
         this.gui.add(this.params, 'thickness', 0.1, 50).name('Thickness (mm)').onChange(() => this.rebuild3D());
