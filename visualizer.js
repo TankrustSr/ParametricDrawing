@@ -19,13 +19,12 @@ export class Visualizer {
         if (!this.container) {
             this.container = document.createElement('div');
             this.container.id = 'visualizer-container';
-            // Added 100dvh to fix iOS/iPad container bleeding
             this.container.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; z-index: 1000; overflow: hidden; background-color: #ffffff;';
             
             const panel = document.createElement('div');
             panel.id = 'vis-ui-panel';
-            // Adjusted top: 80px to safely clear the iPad browser address bar
-            panel.style.cssText = 'position: absolute; top: 80px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 350px;';
+            // Increased to 110px to safely clear Chrome's stacked Address + Tab bars
+            panel.style.cssText = 'position: absolute; top: 110px; left: 20px; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 350px;';
             
             panel.innerHTML = `
                 <h2 style="margin-top: 0; font-size: 1.2rem; color: #333; font-family: sans-serif;">3D Preview</h2>
@@ -41,6 +40,10 @@ export class Visualizer {
             this.container.style.height = '100dvh';
             this.container.style.overflow = 'hidden';
             this.container.style.backgroundColor = '#ffffff';
+            
+            // Failsafe to push panel down if it already existed
+            const existingPanel = document.getElementById('vis-ui-panel');
+            if (existingPanel) existingPanel.style.top = '110px';
         }
 
         this.layerOutput = document.getElementById('vis-layerOutput') || document.getElementById('layerOutput');
@@ -89,8 +92,8 @@ export class Visualizer {
 
         this.gui = new GUI({ title: 'Extrusion Settings' });
         this.gui.domElement.style.position = 'absolute';
-        // Adjusted top: 80px to safely clear the iPad browser address bar
-        this.gui.domElement.style.top = '80px';
+        // Increased to 110px to safely clear the iPad browser address bar
+        this.gui.domElement.style.top = '110px';
         this.gui.domElement.style.right = '20px';
         
         this.gui.add(this.params, 'thickness', 0.1, 50).name('Thickness (mm)').onChange(() => this.rebuild3D());
