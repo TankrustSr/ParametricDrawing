@@ -18,20 +18,16 @@
     -webkit-touch-callout: none;
 }
 
-/* The magic fix for iOS Safari/Chrome floating address bars */
-html {
-    height: -webkit-fill-available;
-}
-
-body {
+html, body {
+    /* Hard lock to the viewport to completely kill rubber-band scrolling */
+    position: fixed; 
+    top: 0; left: 0; bottom: 0; right: 0;
     width: 100%;
+    height: 100%;
     margin: 0;
     padding: 0;
-    /* This stack of height rules forces the body to sit exactly between the top and bottom browser UI */
-    height: 100vh;
-    height: -webkit-fill-available;
-    height: 100dvh; 
-    overflow: hidden; /* Prevents rubber-banding/bouncing */
+    overflow: hidden;
+    overscroll-behavior: none;
     background-color: var(--bg-dark);
     color: var(--text-light);
 }
@@ -49,19 +45,19 @@ body {
     background-color: var(--bg-panel);
     border-right: 1px solid var(--border);
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
+    /* Native iOS momentum scrolling */
+    -webkit-overflow-scrolling: touch; 
+    /* CRITICAL: Removed flex column to stop the top from being chopped off */
+    display: block; 
+    /* Clear the Chrome Top Address Bar */
+    padding-top: 70px; 
+    /* Clear the Chrome Bottom Toolbar */
+    padding-bottom: 90px; 
 }
 
 .menu-section {
     padding: 20px;
     border-bottom: 1px solid var(--border);
-    flex-shrink: 0; 
-}
-
-.export-section {
-    /* Slight padding so the final button doesn't hug the absolute bottom edge */
-    padding-bottom: 40px; 
 }
 
 .menu-section h2 {
@@ -103,14 +99,14 @@ label {
 
 input[type="range"] {
     width: 100%;
-    height: 44px; /* Keep bounding box large for touch */
+    height: 44px;
 }
 
 /* Canvas Area */
 #canvas-area {
     flex: 1;
     position: relative;
-    background-color: #f5f5f5; /* Birch wood contrast */
+    background-color: #f5f5f5;
 }
 
 #main-canvas {
