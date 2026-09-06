@@ -21,10 +21,8 @@
 html, body {
     width: 100%;
     height: 100%;
-    /* Modern dynamic viewport height fixes mobile browser bar clipping */
-    height: 100dvh; 
-    /* Locking position prevents the canvas from bouncing or scrolling off-screen */
-    position: fixed; 
+    /* Absolute positioning is more stable for full-screen iOS web apps */
+    position: absolute; 
     top: 0; left: 0; bottom: 0; right: 0;
     overflow: hidden;
     background-color: var(--bg-dark);
@@ -46,6 +44,8 @@ html, body {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    /* Forces the first menu item down below the Safari floating address bar */
+    padding-top: 80px; 
 }
 
 .menu-section {
