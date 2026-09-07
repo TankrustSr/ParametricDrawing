@@ -210,7 +210,16 @@ export class DrawingController {
     syncEndShapeToDuplication(line, oldDup = null, newDup = null) {
         if (!newDup) newDup = line.settings.duplication || this.getDefaultDupSettings();
         const dupCount = newDup.count;
-        if (dupCount <= 0) return;
+        
+        // CRITICAL FIX: If copies are set to 0, completely clear the target interpolation shapes 
+        // so they regenerate cleanly from the parent shape if copies are turned back on later.
+        if (dupCount <= 0) {
+            line.endPoints = null;
+            line.endCurves = [];
+            line.midPoints = null;
+            line.midCurves = null;
+            return;
+        }
 
         if (!line.endCurves || line.endCurves.length !== line.curves.length) {
             const targetDx = newDup.dx || 0;

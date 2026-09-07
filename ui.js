@@ -1,3 +1,5 @@
+import { Visualizer } from './visualizer.js';
+
 export class UIController {
     constructor(drawingController, exportController) {
         this.drawing = drawingController;
@@ -839,7 +841,7 @@ export class UIController {
         this.drawing.redraw();
     }
 
-        handlePointerDown(e) {
+    handlePointerDown(e) {
         if (e.pointerType !== 'pen' && e.pointerType !== 'mouse' && e.pointerType !== 'touch') return;
         if (e.button === 5 || e.buttons === 32 || e.button === 2) { this.drawing.handleSqueeze(); return; }
 
@@ -926,5 +928,4 @@ export class UIController {
             this.drawing.releaseHandle();
         }
     }
-
 }
