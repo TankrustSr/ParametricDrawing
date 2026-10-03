@@ -25,6 +25,18 @@ export class DrawingController {
         this.isDragging = false;
     }
 
+    lerpColor(a, b, t) {
+        if (!a || !b) return a || '#000000';
+        const ah = parseInt(a.replace(/#/g, ''), 16),
+              ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff;
+        const bh = parseInt(b.replace(/#/g, ''), 16),
+              br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff;
+        const rr = Math.round(ar + t * (br - ar)),
+              rg = Math.round(ag + t * (bg - ag)),
+              rb = Math.round(ab + t * (bb - ab));
+        return '#' + (1 << 24 | rr << 16 | rg << 8 | rb).toString(16).slice(1);
+    }
+
     screenToWorld(sx, sy) {
         let x = sx - this.camera.x;
         let y = sy - this.camera.y;
@@ -700,13 +712,18 @@ export class DrawingController {
         if (line.points.length === 1) {
             this.ctx.beginPath();
             this.ctx.arc(line.points[0].x, line.points[0].y, line.settings.widthStart / 2, 0, Math.PI * 2);
-            this.ctx.fillStyle = line.settings.color;
+            this.ctx.fillStyle = line.settings.color || '#000000';
             this.ctx.fill();
             return;
         }
 
         const dup = line.settings.duplication || { count: 1 };
         const totalShapes = Math.max(1, parseInt(dup.count) || 1);
+        const gMode = line.settings.gradMode || 'none';
+        const gSteps = line.settings.gradSteps || 5;
+        const gRamp = (line.settings.gradRamp !== undefined ? line.settings.gradRamp : 100) / 100;
+        const gStart = line.settings.gradColorStart || '#000000';
+        const gEnd = line.settings.gradColorEnd || '#ffffff';
 
         if (totalShapes > 1 && (!line.endCurves || line.endCurves.length !== line.curves.length)) {
             this.syncEndShapeToDuplication(line);
@@ -729,36 +746,55 @@ export class DrawingController {
 
             if (!currentCurves || currentCurves.length === 0) continue;
 
-            this.ctx.save();
-            
-            if (dupParams.sMult !== 1) {
-                const origin = line.origin || { x: 0, y: 0 };
-                this.ctx.translate(origin.x, origin.y);
-                this.ctx.scale(dupParams.sMult, dupParams.sMult);
-                this.ctx.translate(-origin.x, -origin.y);
-            }
-
-            const totalCurves = currentCurves.length;
-            currentCurves.forEach((curve, index) => {
-                const steps = 150; 
-                for (let i = 0; i < steps; i++) {
-                    const localT = i / steps;
-                    const pt = this.getBezierPoint(localT, curve.p0, curve.cp1, curve.cp2, curve.p3);
-                    const nextPt = this.getBezierPoint((i + 1) / steps, curve.p0, curve.cp1, curve.cp2, curve.p3);
-                    const width = this.getWidthAtT((index + localT) / totalCurves, line.settings, dupParams);
-                    
-                    this.ctx.beginPath();
-                    this.ctx.lineWidth = width;
-                    this.ctx.lineCap = line.settings.lineCap || 'round';
-                    this.ctx.lineJoin = 'round';
-                    this.ctx.strokeStyle = line.settings.color;
-                    this.ctx.moveTo(pt.x, pt.y);
-                    this.ctx.lineTo(nextPt.x, nextPt.y);
-                    this.ctx.stroke();
+            const drawCurveSequence = (wMultOuter, pathColor) => {
+                this.ctx.save();
+                if (dupParams.sMult !== 1) {
+                    const origin = line.origin || { x: 0, y: 0 };
+                    this.ctx.translate(origin.x, origin.y);
+                    this.ctx.scale(dupParams.sMult, dupParams.sMult);
+                    this.ctx.translate(-origin.x, -origin.y);
                 }
-            });
 
-            this.ctx.restore();
+                const totalCurves = currentCurves.length;
+                currentCurves.forEach((curve, index) => {
+                    const steps = 150; 
+                    for (let i = 0; i < steps; i++) {
+                        const localT = i / steps;
+                        const globalT = (index + localT) / totalCurves;
+                        const pt = this.getBezierPoint(localT, curve.p0, curve.cp1, curve.cp2, curve.p3);
+                        const nextPt = this.getBezierPoint((i + 1) / steps, curve.p0, curve.cp1, curve.cp2, curve.p3);
+                        const width = this.getWidthAtT(globalT, line.settings, dupParams) * wMultOuter;
+                        
+                        this.ctx.beginPath();
+                        this.ctx.lineWidth = width;
+                        this.ctx.lineCap = line.settings.lineCap || 'round';
+                        this.ctx.lineJoin = 'round';
+                        
+                        if (gMode === 'lengthwise') {
+                            let stepT = Math.floor(globalT * gSteps) / Math.max(1, gSteps - 1);
+                            this.ctx.strokeStyle = this.lerpColor(gStart, gEnd, stepT);
+                        } else {
+                            this.ctx.strokeStyle = pathColor || line.settings.color || '#000000';
+                        }
+                        
+                        this.ctx.moveTo(pt.x, pt.y);
+                        this.ctx.lineTo(nextPt.x, nextPt.y);
+                        this.ctx.stroke();
+                    }
+                });
+                this.ctx.restore();
+            };
+
+            if (gMode === 'edge') {
+                for (let k = 0; k < gSteps; k++) {
+                    let edgeT = gSteps > 1 ? k / (gSteps - 1) : 0;
+                    let pCol = this.lerpColor(gStart, gEnd, edgeT);
+                    let wMult = 1.0 - (edgeT * gRamp);
+                    drawCurveSequence(wMult, pCol);
+                }
+            } else {
+                drawCurveSequence(1.0, line.settings.color);
+            }
         }
     }
 

@@ -176,9 +176,40 @@
                 <input type="range" id="mod-exp" min="0.1" max="5" step="0.1" value="1">
             </section>
 
+            <section class="menu-section">
+                <h2>Gradient / Depth Map</h2>
+                <label>Mode</label>
+                <select id="grad-mode">
+                    <option value="none">None</option>
+                    <option value="lengthwise">Lengthwise (Start to End)</option>
+                    <option value="edge">Edge (Inward Ramp)</option>
+                </select>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <div style="flex: 1;">
+                        <label style="margin-top:0;">Start Color</label>
+                        <input type="color" id="grad-color-start" value="#000000">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="margin-top:0;">End Color</label>
+                        <input type="color" id="grad-color-end" value="#ffffff">
+                    </div>
+                </div>
+
+                <label>Steps (Vector Contours): <span id="val-grad-steps">5</span></label>
+                <input type="range" id="grad-steps" min="2" max="50" step="1" value="5">
+
+                <label>Ramp Depth: <span id="val-grad-ramp">100</span>%</label>
+                <input type="range" id="grad-ramp" min="10" max="100" step="1" value="100">
+            </section>
+
             <section class="menu-section export-section">
-                <button id="btn-preview-3d" class="btn">Preview 3D</button>
-                <button id="btn-export-svg" class="primary">Export to .SVG</button>
+                <label style="margin-top: 0;">Background Color</label>
+                <input type="color" id="bg-color" value="#f5f5f5">
+                <div style="margin-top: 15px;">
+                    <button id="btn-preview-3d" class="btn">Preview 3D</button>
+                    <button id="btn-export-svg" class="primary">Export to .SVG</button>
+                </div>
             </section>
         </aside>
 

@@ -4,8 +4,6 @@ export class ExportController {
     }
 
     getSVGString() {
-        let svgBody = '';
-        const lineCap = this.drawing.settings?.lineCap || 'round';
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         
         const trackPt = (x, y) => {
@@ -13,74 +11,98 @@ export class ExportController {
             if (y < minY) minY = y; if (y > maxY) maxY = y;
         };
 
-        // 1. Group all drawn lines by their assigned color
-        const colorGroups = {};
+        const generatedPaths = []; 
+
         for (let lIdx = 0; lIdx < this.drawing.lines.length; lIdx++) {
             const line = this.drawing.lines[lIdx];
             if (!line || !line.points || line.points.length === 0) continue;
-            
-            const color = (line.settings && line.settings.color) ? line.settings.color : '#000000';
-            if (!colorGroups[color]) {
-                colorGroups[color] = [];
-            }
-            colorGroups[color].push(line);
-        }
 
-        // 2. Export each color group as a single SVG <g> layer
-        let layerIndex = 1;
-        for (const color in colorGroups) {
-            const linesInGroup = colorGroups[color];
-            
-            // Create a valid ID by stripping the hash from the hex color
-            const safeLayerName = `Layer_${layerIndex}_Color_${color.replace('#', '')}`;
-            svgBody += `  <g id="${safeLayerName}">\n`;
+            const baseColor = line.settings.color || '#000000';
+            const cap = line.settings.lineCap || 'round';
+            const gMode = line.settings.gradMode || 'none';
+            const gSteps = line.settings.gradSteps || 5;
+            const gRamp = (line.settings.gradRamp !== undefined ? line.settings.gradRamp : 100) / 100;
+            const gStart = line.settings.gradColorStart || '#000000';
+            const gEnd = line.settings.gradColorEnd || '#ffffff';
 
-            for (let i = 0; i < linesInGroup.length; i++) {
-                const line = linesInGroup[i];
-                const cap = line.settings.lineCap || lineCap;
+            const emitPath = (pathD, color, isFill) => {
+                const fillAttr = isFill ? color : "none";
+                const strokeAttr = isFill ? color : color;
+                const sw = isFill ? "0.5" : "1";
+                generatedPaths.push({
+                    color: color,
+                    svg: `    <path d="${pathD}" fill="${fillAttr}" stroke="${strokeAttr}" stroke-width="${sw}" stroke-linejoin="round" />\n`
+                });
+            };
 
-                if (line.points.length === 1) {
-                    const pt = line.points[0];
-                    const radius = (line.settings.widthStart || 5) / 2;
-                    trackPt(pt.x - radius, pt.y - radius);
-                    trackPt(pt.x + radius, pt.y + radius);
-                    svgBody += `    <circle cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="${color}" />\n`;
-                    continue;
-                }
+            const emitRaw = (svgString, color) => {
+                generatedPaths.push({ color: color, svg: svgString });
+            };
 
-                const dup = line.settings.duplication || { count: 1 };
-                const totalShapes = Math.max(1, parseInt(dup.count) || 1);
-
-                if (totalShapes > 1 && (!line.endCurves || line.endCurves.length !== line.curves.length)) {
-                    this.drawing.syncEndShapeToDuplication(line);
-                }
-
-                for (let j = 0; j < totalShapes; j++) {
-                    const dupT = totalShapes > 1 ? (j / (totalShapes - 1)) : 0;
-
-                    const dupParams = {
-                        wMult: dup.w ? this.drawing.getLerp3(1, dup.w.m, dup.w.e, dupT) : 1,
-                        pOffset: dup.p ? this.drawing.getLerp3(0, dup.p.m, dup.p.e, dupT) : 0,
-                        aMult: dup.a ? this.drawing.getLerp3(1, dup.a.m, dup.a.e, dupT) : 1,
-                        fMult: dup.f ? this.drawing.getLerp3(1, dup.f.m, dup.f.e, dupT) : 1,
-                        sMult: dup.s ? this.drawing.getLerp3(1, dup.s.m, dup.s.e, dupT) : 1,
-                    };
-
-                    const currentCurves = (totalShapes > 1 && line.endCurves && line.endCurves.length === line.curves.length)
-                        ? this.drawing.getInterpolatedCurves(line, dupT)
-                        : line.curves;
-
-                    if (!currentCurves || currentCurves.length === 0) continue;
-
-                    let groupOpen = '';
-                    let groupClose = '';
-                    if (dupParams.sMult !== 1) {
-                        const origin = line.origin || { x: 0, y: 0 };
-                        groupOpen = `    <g transform="translate(${origin.x}, ${origin.y}) scale(${dupParams.sMult}) translate(${-origin.x}, ${-origin.y})">\n`;
-                        groupClose = `    </g>\n`;
+            if (line.points.length === 1) {
+                const pt = line.points[0];
+                const radius = (line.settings.widthStart || 5) / 2;
+                trackPt(pt.x - radius, pt.y - radius);
+                trackPt(pt.x + radius, pt.y + radius);
+                
+                if (gMode === 'edge') {
+                    for(let k = 0; k < gSteps; k++) {
+                        let edgeT = gSteps > 1 ? k / (gSteps - 1) : 0;
+                        let rColor = this.drawing.lerpColor(gStart, gEnd, edgeT);
+                        let wMult = 1.0 - (edgeT * gRamp);
+                        let innerRad = (radius * wMult).toFixed(2);
+                        emitRaw(`    <circle cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${innerRad}" fill="${rColor}" stroke="${rColor}" stroke-width="0.5" />\n`, rColor);
                     }
+                } else {
+                    emitRaw(`    <circle cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="none" stroke="${baseColor}" stroke-width="1" />\n`, baseColor);
+                }
+                continue;
+            }
 
-                    if (groupOpen) svgBody += groupOpen;
+            const dup = line.settings.duplication || { count: 1 };
+            const totalShapes = Math.max(1, parseInt(dup.count) || 1);
+
+            if (totalShapes > 1 && (!line.endCurves || line.endCurves.length !== line.curves.length)) {
+                this.drawing.syncEndShapeToDuplication(line);
+            }
+
+            for (let j = 0; j < totalShapes; j++) {
+                const dupT = totalShapes > 1 ? (j / (totalShapes - 1)) : 0;
+
+                const dupParams = {
+                    wMult: dup.w ? this.drawing.getLerp3(1, dup.w.m, dup.w.e, dupT) : 1,
+                    pOffset: dup.p ? this.drawing.getLerp3(0, dup.p.m, dup.p.e, dupT) : 0,
+                    aMult: dup.a ? this.drawing.getLerp3(1, dup.a.m, dup.a.e, dupT) : 1,
+                    fMult: dup.f ? this.drawing.getLerp3(1, dup.f.m, dup.f.e, dupT) : 1,
+                    sMult: dup.s ? this.drawing.getLerp3(1, dup.s.m, dup.s.e, dupT) : 1,
+                };
+
+                const currentCurves = (totalShapes > 1 && line.endCurves && line.endCurves.length === line.curves.length)
+                    ? this.drawing.getInterpolatedCurves(line, dupT)
+                    : line.curves;
+
+                if (!currentCurves || currentCurves.length === 0) continue;
+
+                const sMult = dupParams.sMult;
+                const origin = line.origin || { x: 0, y: 0 };
+
+                let pathColorList = [];
+                let wMultList = [];
+                
+                if (gMode === 'edge') {
+                    for(let k=0; k<gSteps; k++) {
+                        let edgeT = gSteps > 1 ? k / (gSteps - 1) : 0;
+                        pathColorList.push(this.drawing.lerpColor(gStart, gEnd, edgeT));
+                        wMultList.push(1.0 - (edgeT * gRamp));
+                    }
+                } else {
+                    pathColorList.push(baseColor);
+                    wMultList.push(1.0);
+                }
+
+                for(let v = 0; v < wMultList.length; v++) {
+                    let currentWMult = wMultList[v];
+                    let currentLayerColor = pathColorList[v];
 
                     const totalCurves = currentCurves.length;
                     const sampleSteps = 600; 
@@ -108,11 +130,17 @@ export class ExportController {
                             const nx = -dy / len;
                             const ny = dx / len;
 
-                            const width = this.drawing.getWidthAtT(globalT, line.settings, dupParams);
+                            const width = this.drawing.getWidthAtT(globalT, line.settings, dupParams) * currentWMult;
                             const halfW = width / 2;
 
-                            rawLeft.push({ x: pt.x + nx * halfW, y: pt.y + ny * halfW });
-                            rawRight.push({ x: pt.x - nx * halfW, y: pt.y - ny * halfW });
+                            rawLeft.push({
+                                x: origin.x + (pt.x + nx * halfW - origin.x) * sMult,
+                                y: origin.y + (pt.y + ny * halfW - origin.y) * sMult
+                            });
+                            rawRight.push({
+                                x: origin.x + (pt.x - nx * halfW - origin.x) * sMult,
+                                y: origin.y + (pt.y - ny * halfW - origin.y) * sMult
+                            });
                         }
                     });
 
@@ -138,23 +166,31 @@ export class ExportController {
                     const firstCurve = currentCurves[0];
                     const lastCurve = currentCurves[currentCurves.length - 1];
                     
+                    const startCenter = {
+                        x: origin.x + (firstCurve.p0.x - origin.x) * sMult,
+                        y: origin.y + (firstCurve.p0.y - origin.y) * sMult
+                    };
+                    const endCenter = {
+                        x: origin.x + (lastCurve.p3.x - origin.x) * sMult,
+                        y: origin.y + (lastCurve.p3.y - origin.y) * sMult
+                    };
+
+                    const startW = (this.drawing.getWidthAtT(0, line.settings, dupParams) * currentWMult * Math.abs(sMult)) / 2;
+                    const endW = (this.drawing.getWidthAtT(1, line.settings, dupParams) * currentWMult * Math.abs(sMult)) / 2;
+
                     const startTan = { x: firstCurve.cp1.x - firstCurve.p0.x, y: firstCurve.cp1.y - firstCurve.p0.y };
                     const startTanLen = Math.hypot(startTan.x, startTan.y) || 1;
                     const stx = startTan.x / startTanLen;
                     const sty = startTan.y / startTanLen;
+                    const snx = -sty * Math.sign(sMult);
+                    const sny = stx * Math.sign(sMult);
 
                     const endTan = { x: lastCurve.p3.x - lastCurve.cp2.x, y: lastCurve.p3.y - lastCurve.cp2.y };
                     const endTanLen = Math.hypot(endTan.x, endTan.y) || 1;
                     const etx = endTan.x / endTanLen;
                     const ety = endTan.y / endTanLen;
-
-                    const startCenter = firstCurve.p0;
-                    const endCenter = lastCurve.p3;
-                    const startW = this.drawing.getWidthAtT(0, line.settings, dupParams) / 2;
-                    const endW = this.drawing.getWidthAtT(1, line.settings, dupParams) / 2;
-
-                    const snx = -sty, sny = stx;
-                    const enx = -ety, eny = etx;
+                    const enx = -ety * Math.sign(sMult);
+                    const eny = etx * Math.sign(sMult);
 
                     const realStartLeft = { x: startCenter.x + snx * startW, y: startCenter.y + sny * startW };
                     const realStartRight = { x: startCenter.x - snx * startW, y: startCenter.y - sny * startW };
@@ -166,37 +202,110 @@ export class ExportController {
                     leftPoints[leftPoints.length - 1] = realEndLeft;
                     rightPoints[rightPoints.length - 1] = realEndRight;
 
-                    let pathD = `M ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
-                    trackPt(realStartLeft.x, realStartLeft.y);
-                    
-                    for (let k = 1; k < leftPoints.length; k++) {
-                        pathD += ` L ${leftPoints[k].x.toFixed(2)} ${leftPoints[k].y.toFixed(2)}`;
-                        trackPt(leftPoints[k].x, leftPoints[k].y);
-                    }
+                    if (gMode === 'lengthwise') {
+                        const totalPoints = leftPoints.length;
+                        for (let stepS = 0; stepS < gSteps; stepS++) {
+                            let chunkColor = this.drawing.lerpColor(gStart, gEnd, gSteps > 1 ? stepS / (gSteps - 1) : 0);
 
-                    if (cap === 'round') {
-                        pathD += ` A ${endW.toFixed(2)} ${endW.toFixed(2)} 0 0 0 ${realEndRight.x.toFixed(2)} ${realEndRight.y.toFixed(2)}`;
+                            let idxStart = Math.floor(stepS * (totalPoints - 1) / gSteps);
+                            let idxEnd = Math.floor((stepS + 1) * (totalPoints - 1) / gSteps);
+                            if (idxEnd >= totalPoints) idxEnd = totalPoints - 1;
+
+                            let chunkLeft = leftPoints.slice(idxStart, idxEnd + 1);
+                            let chunkRight = rightPoints.slice(idxStart, idxEnd + 1);
+
+                            let pathD = `M ${chunkLeft[0].x.toFixed(2)} ${chunkLeft[0].y.toFixed(2)}`;
+                            trackPt(chunkLeft[0].x, chunkLeft[0].y);
+
+                            for (let k = 1; k < chunkLeft.length; k++) {
+                                pathD += ` L ${chunkLeft[k].x.toFixed(2)} ${chunkLeft[k].y.toFixed(2)}`;
+                                trackPt(chunkLeft[k].x, chunkLeft[k].y);
+                            }
+
+                            if (stepS === gSteps - 1 && cap === 'round') {
+                                pathD += ` A ${endW.toFixed(2)} ${endW.toFixed(2)} 0 0 0 ${chunkRight[chunkRight.length-1].x.toFixed(2)} ${chunkRight[chunkRight.length-1].y.toFixed(2)}`;
+                            } else {
+                                pathD += ` L ${chunkRight[chunkRight.length-1].x.toFixed(2)} ${chunkRight[chunkRight.length-1].y.toFixed(2)}`;
+                            }
+                            trackPt(chunkRight[chunkRight.length-1].x, chunkRight[chunkRight.length-1].y);
+
+                            for (let k = chunkRight.length - 2; k >= 0; k--) {
+                                pathD += ` L ${chunkRight[k].x.toFixed(2)} ${chunkRight[k].y.toFixed(2)}`;
+                                trackPt(chunkRight[k].x, chunkRight[k].y);
+                            }
+
+                            if (stepS === 0 && cap === 'round') {
+                                pathD += ` A ${startW.toFixed(2)} ${startW.toFixed(2)} 0 0 0 ${chunkLeft[0].x.toFixed(2)} ${chunkLeft[0].y.toFixed(2)}`;
+                            } else {
+                                pathD += ` L ${chunkLeft[0].x.toFixed(2)} ${chunkLeft[0].y.toFixed(2)}`;
+                            }
+
+                            pathD += ` Z`;
+                            emitPath(pathD, chunkColor, true);
+                        }
+                    } else if (gMode === 'edge') {
+                        let pathD = `M ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
+                        trackPt(realStartLeft.x, realStartLeft.y);
+                        
+                        for (let k = 1; k < leftPoints.length; k++) {
+                            pathD += ` L ${leftPoints[k].x.toFixed(2)} ${leftPoints[k].y.toFixed(2)}`;
+                            trackPt(leftPoints[k].x, leftPoints[k].y);
+                        }
+
+                        if (cap === 'round') pathD += ` A ${endW.toFixed(2)} ${endW.toFixed(2)} 0 0 0 ${realEndRight.x.toFixed(2)} ${realEndRight.y.toFixed(2)}`;
+                        else pathD += ` L ${realEndRight.x.toFixed(2)} ${realEndRight.y.toFixed(2)}`;
+                        trackPt(realEndRight.x, realEndRight.y);
+
+                        for (let k = rightPoints.length - 2; k >= 0; k--) {
+                            pathD += ` L ${rightPoints[k].x.toFixed(2)} ${rightPoints[k].y.toFixed(2)}`;
+                            trackPt(rightPoints[k].x, rightPoints[k].y);
+                        }
+
+                        if (cap === 'round') pathD += ` A ${startW.toFixed(2)} ${startW.toFixed(2)} 0 0 0 ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
+                        else pathD += ` L ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
+                        pathD += ` Z`;
+
+                        emitPath(pathD, currentLayerColor, true);
                     } else {
-                        pathD += ` L ${realEndRight.x.toFixed(2)} ${realEndRight.y.toFixed(2)}`;
-                    }
-                    trackPt(realEndRight.x, realEndRight.y);
+                        let pathD = `M ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
+                        trackPt(realStartLeft.x, realStartLeft.y);
+                        
+                        for (let k = 1; k < leftPoints.length; k++) {
+                            pathD += ` L ${leftPoints[k].x.toFixed(2)} ${leftPoints[k].y.toFixed(2)}`;
+                            trackPt(leftPoints[k].x, leftPoints[k].y);
+                        }
 
-                    for (let k = rightPoints.length - 2; k >= 0; k--) {
-                        pathD += ` L ${rightPoints[k].x.toFixed(2)} ${rightPoints[k].y.toFixed(2)}`;
-                        trackPt(rightPoints[k].x, rightPoints[k].y);
-                    }
+                        if (cap === 'round') pathD += ` A ${endW.toFixed(2)} ${endW.toFixed(2)} 0 0 0 ${realEndRight.x.toFixed(2)} ${realEndRight.y.toFixed(2)}`;
+                        else pathD += ` L ${realEndRight.x.toFixed(2)} ${realEndRight.y.toFixed(2)}`;
+                        trackPt(realEndRight.x, realEndRight.y);
 
-                    if (cap === 'round') {
-                        pathD += ` A ${startW.toFixed(2)} ${startW.toFixed(2)} 0 0 0 ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
-                    } else {
-                        pathD += ` L ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
-                    }
-                    pathD += ` Z`;
+                        for (let k = rightPoints.length - 2; k >= 0; k--) {
+                            pathD += ` L ${rightPoints[k].x.toFixed(2)} ${rightPoints[k].y.toFixed(2)}`;
+                            trackPt(rightPoints[k].x, rightPoints[k].y);
+                        }
 
-                    svgBody += `    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="1" stroke-linejoin="round" />\n`;
-                    if (groupClose) svgBody += groupClose;
+                        if (cap === 'round') pathD += ` A ${startW.toFixed(2)} ${startW.toFixed(2)} 0 0 0 ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
+                        else pathD += ` L ${realStartLeft.x.toFixed(2)} ${realStartLeft.y.toFixed(2)}`;
+                        pathD += ` Z`;
+
+                        emitPath(pathD, baseColor, false);
+                    }
                 }
             }
+        }
+
+        const colorGroups = {};
+        generatedPaths.forEach(p => {
+            if (!colorGroups[p.color]) colorGroups[p.color] = [];
+            colorGroups[p.color].push(p.svg);
+        });
+
+        let svgBody = '';
+        let layerIndex = 1;
+        for (const color in colorGroups) {
+            const safeLayerName = `Layer_${layerIndex}_Color_${color.replace('#', '')}`;
+            svgBody += `  <g id="${safeLayerName}">\n`;
+            svgBody += colorGroups[color].join('');
             svgBody += `  </g>\n`;
             layerIndex++;
         }
@@ -209,8 +318,12 @@ export class ExportController {
         const vbW = (maxX - minX + pad * 2).toFixed(2);
         const vbH = (maxY - minY + pad * 2).toFixed(2);
 
+        // Map custom background color selection
+        const bgColor = document.getElementById('bg-color') ? document.getElementById('bg-color').value : '#f5f5f5';
+
         let svgContent = `<?xml version="1.0" encoding="UTF-8"?>\n`;
         svgContent += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${vbW}mm" height="${vbH}mm">\n`;
+        svgContent += `  <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${bgColor}" />\n`;
         svgContent += svgBody;
         svgContent += `</svg>`;
 

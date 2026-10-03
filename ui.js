@@ -160,7 +160,7 @@ export class UIController {
     }
 
     cacheElements() {
-        this.sliders = ['width-start', 'width-mid', 'width-end', 'mod-freq', 'mod-amp-start', 'mod-amp-mid', 'mod-amp-end', 'mod-exp'];
+        this.sliders = ['width-start', 'width-mid', 'width-end', 'mod-freq', 'mod-amp-start', 'mod-amp-mid', 'mod-amp-end', 'mod-exp', 'grad-steps', 'grad-ramp'];
         this.sliderEls = {};
         this.valEls = {};
         
@@ -176,8 +176,8 @@ export class UIController {
             this.meFields.push(`dup-${p}-m`, `dup-${p}-e`);
         });
 
-        this.selects = ['mod-waveform', 'line-cap'];
-        this.colorEl = document.getElementById('line-color');
+        this.selects = ['mod-waveform', 'line-cap', 'grad-mode'];
+        this.colorEls = ['line-color', 'grad-color-start', 'grad-color-end', 'bg-color'];
 
         this.btnNew = document.querySelector('#btn-new, #new-btn, #btn-layer-new, #new-layer')
             || this.findEl(['btn-new', 'new-btn'], ['New', 'New Layer', '+ New']);
@@ -446,7 +446,16 @@ export class UIController {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateDrawingSettings());
         });
-        if (this.colorEl) this.colorEl.addEventListener('input', () => this.updateDrawingSettings());
+        this.colorEls.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', (e) => {
+                if (id === 'bg-color') {
+                    const canvasArea = document.getElementById('canvas-area');
+                    if (canvasArea) canvasArea.style.backgroundColor = e.target.value;
+                }
+                this.updateDrawingSettings();
+            });
+        });
 
         window.addEventListener('lineSelected', (e) => {
             const line = e.detail;
@@ -730,10 +739,22 @@ export class UIController {
         setVal('mod-freq', s.modFreq); setVal('mod-amp-start', s.modAmpStart ?? s.modAmp);
         setVal('mod-amp-mid', s.modAmpMid ?? s.modAmp); setVal('mod-amp-end', s.modAmpEnd ?? s.modAmp);
         setVal('mod-exp', s.modExp);
+        setVal('grad-steps', s.gradSteps);
+        setVal('grad-ramp', s.gradRamp);
+
+        const gModeEl = document.getElementById('grad-mode'); if (gModeEl && s.gradMode) gModeEl.value = s.gradMode;
+        const col1 = document.getElementById('line-color'); if (col1 && s.color) col1.value = s.color;
+        const gColStart = document.getElementById('grad-color-start'); if (gColStart && s.gradColorStart) gColStart.value = s.gradColorStart;
+        const gColEnd = document.getElementById('grad-color-end'); if (gColEnd && s.gradColorEnd) gColEnd.value = s.gradColorEnd;
+        const bgCol = document.getElementById('bg-color'); 
+        if (bgCol && s.bgColor) {
+            bgCol.value = s.bgColor;
+            const canvasArea = document.getElementById('canvas-area');
+            if (canvasArea) canvasArea.style.backgroundColor = s.bgColor;
+        }
 
         const waveformEl = document.getElementById('mod-waveform'); if (waveformEl && s.waveform) waveformEl.value = s.waveform;
         const lineCapEl = document.getElementById('line-cap'); if (lineCapEl && s.lineCap) lineCapEl.value = s.lineCap;
-        if (this.colorEl && s.color) this.colorEl.value = s.color;
         if (s.duplication) this.syncDuplicateUI(s.duplication);
     }
 
@@ -755,7 +776,14 @@ export class UIController {
 
         return {
             widthStart: num('width-start', 1), widthMid: num('width-mid', 1), widthEnd: num('width-end', 1),
-            color: this.colorEl?.value || '#000000', waveform: document.getElementById('mod-waveform')?.value || 'none',
+            color: document.getElementById('line-color')?.value || '#000000', 
+            bgColor: document.getElementById('bg-color')?.value || '#f5f5f5',
+            gradMode: document.getElementById('grad-mode')?.value || 'none',
+            gradColorStart: document.getElementById('grad-color-start')?.value || '#000000',
+            gradColorEnd: document.getElementById('grad-color-end')?.value || '#ffffff',
+            gradSteps: num('grad-steps', 5),
+            gradRamp: num('grad-ramp', 100),
+            waveform: document.getElementById('mod-waveform')?.value || 'none',
             modFreq: num('mod-freq', 10), modAmpStart: num('mod-amp-start', 0), modAmpMid: num('mod-amp-mid', 0),
             modAmpEnd: num('mod-amp-end', 0), modExp: num('mod-exp', 1), lineCap: document.getElementById('line-cap')?.value || 'round',
             duplication: dup
